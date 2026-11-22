@@ -28,3 +28,15 @@ export function missingEnv(): string[] {
   if (!process.env.FORM_SECRET) missing.push("FORM_SECRET");
   return missing;
 }
+
+/**
+ * Optional public demo login shown on the sign-in page (DEMO_EMAIL, DEMO_PASSWORD).
+ * These are meant to be public: mark that user with profiles.is_demo = true so the
+ * database limits what it can change (see migration 20261122000100_demo_account.sql).
+ */
+export function getDemoCredentials(): { email: string; password: string } | null {
+  const email = process.env.DEMO_EMAIL?.trim();
+  const password = process.env.DEMO_PASSWORD;
+  if (!email || !password) return null;
+  return { email, password };
+}

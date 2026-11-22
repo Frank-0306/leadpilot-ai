@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SetupNotice } from "@/components/shell/setup-notice";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
-import { getPublicSupabaseEnv, missingEnv } from "@/lib/supabase/env";
+import { getDemoCredentials, getPublicSupabaseEnv, missingEnv } from "@/lib/supabase/env";
 import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Sign in" };
@@ -25,7 +25,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <h1 className="text-2xl font-semibold tracking-[-0.02em]">Sign in to Northstar</h1>
             <p className="text-sm text-muted">Use the account your admin created for you.</p>
           </div>
-          <LoginForm next={next} />
+          <LoginForm next={next} demo={getDemoCredentials()} />
           <p className="text-[13px] text-muted">
             Looking for the public site?{" "}
             <Link href="/northstar" className="text-accent hover:underline">

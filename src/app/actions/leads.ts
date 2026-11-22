@@ -137,6 +137,11 @@ export async function deleteLeadAction(leadId: string): Promise<ActionResult> {
   if (!z.uuid().safeParse(leadId).success) return { ok: false, message: "Invalid lead." };
 
   const supabase = await createSupabaseServerClient();
+  if (viewer.isDemo) {
+    // Same rule as the database guard, checked first for a clear message.
+    const { data: row } = await supabase.from("leads").select("is_demo").eq("id", leadId).maybeSingle();
+    if (row && !row.is_demo) return { ok: false, message: "The demo account can only delete demo leads." };
+  }
   const { data, error } = await supabase.from("leads").delete().eq("id", leadId).select("id");
   if (error) return { ok: false, message: friendlyDbError(error, "The lead couldn't be deleted.") };
   if (!data?.length) return { ok: false, message: "That lead was already deleted." };

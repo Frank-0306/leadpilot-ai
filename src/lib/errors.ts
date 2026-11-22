@@ -3,6 +3,8 @@ export function friendlyDbError(error: { code?: string; message?: string } | nul
   if (!error) return fallback;
   switch (error.code) {
     case "42501":
+      // Raised by the demo-account guards; the text is written for end users.
+      if (error.message?.startsWith("The demo account")) return error.message;
       return "You don't have permission to do that. Ask an admin if you need access.";
     case "23505":
       return "That record already exists.";

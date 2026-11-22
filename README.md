@@ -118,7 +118,7 @@ Sign in at `/login`. To try the agent role, go to **Settings → Sales team** an
 | Command | What it runs | Result |
 | --- | --- | --- |
 | `npm test` | 41 unit tests: validation, time zones, date ranges, form token, honeypot, hashing, webhook signatures, bearer auth, dispatcher against a stand-in n8n HTTP server (auth, duplicates, 403/500, timeouts, unreachable), AI output validation (shape, fair-housing guard, unsafe drafts), n8n workflow JSON checks and execution of the workflows' own Code nodes (prompt fencing, Gemini output parsing) | ✅ passing |
-| `npm run test:db` | All migrations on a throwaway Postgres 16 + SQL suites: flows, RLS, outbox, automations (idempotent tasks, retries), AI analysis (minimal context, limits, first-result-wins, human approval) | ✅ passing |
+| `npm run test:db` | All migrations on a throwaway Postgres 16 + SQL suites: flows, RLS, outbox, automations (idempotent tasks, retries), AI analysis (minimal context, limits, first-result-wins, human approval), demo-account guards | ✅ passing |
 | `npm run typecheck` | `tsc --noEmit` against the real Next.js, React and Supabase types | ✅ passing |
 
 ### Verified manually against the real stack (local Next.js + Supabase + n8n 2.x + Gemini free tier)
@@ -170,7 +170,28 @@ Both files contain no credentials. Failed deliveries retry with exponential back
 - Sign-in errors don't reveal whether an email exists; post-login redirects only allow internal paths.
 - Public form: honeypot, signed timing token (min. 2.5 s, max. 2 h), per-IP (5 / 10 min) and per-email (3 / hour) limits stored in Postgres, IPs and emails stored only as salted hashes, repeat inquiries merged into the open lead.
 - Security headers (CSP frame-ancestors, HSTS, nosniff, referrer policy) in `next.config.ts`.
+- Public demo login is limited in the database, not just the UI (see below).
 
 ## Demo data
 
 All demo rows have `is_demo = true`. **Settings → Demo data → Reset** (admin only) deletes and recreates only those rows. Real leads, users, profiles and agent-to-login links are preserved. Demo agents use fixed IDs so links survive resets. Notes or tasks that a user adds *to a demo lead* are removed with it.
+
+## Public demo account
+
+The sign-in page can offer a one-click demo login so visitors can explore the CRM as an admin. Its credentials are public, so its limits live in Postgres (migration `20261122000100_demo_account.sql`) and apply even if someone uses them directly against the Supabase API:
+
+- Reads everything an admin reads, except other users' profiles (emails stay private).
+- Cannot change roles, link logins to agents, edit the team roster or change automations.
+- Leads, tasks and notes it creates are demo records; it can edit or delete demo records only, never real ones.
+- Can reset the demo data.
+
+Setup:
+
+1. Supabase → **Authentication → Users → Add user**: an email you don't use elsewhere (for example `demo@your-domain.com`), a password, *Auto Confirm User* on.
+2. SQL Editor:
+   ```sql
+   update public.profiles set role = 'admin', is_demo = true where email = 'demo@your-domain.com';
+   ```
+3. Set `DEMO_EMAIL` and `DEMO_PASSWORD` (Vercel and `.env.local`) and redeploy.
+
+Covered by `supabase/tests/50_demo_account.sql`.

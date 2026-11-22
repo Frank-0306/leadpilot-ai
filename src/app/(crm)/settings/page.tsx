@@ -24,6 +24,13 @@ export default async function SettingsPage() {
     <>
       <PageHeader title="Settings" description="Team access and demo data for the Northstar workspace." />
 
+      {viewer.isDemo ? (
+        <div className="mb-8 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-muted" role="note">
+          You&apos;re using the public demo account. Users, roles and agent logins are read-only here, and other people&apos;s emails are hidden. You can
+          still reset the demo data below.
+        </div>
+      ) : null}
+
       <section className="mb-10" aria-labelledby="users-title">
         <h2 id="users-title" className="mb-1 text-[15px] font-semibold">
           Users
@@ -39,7 +46,7 @@ export default async function SettingsPage() {
                 <p className="truncate text-sm font-medium">{u.full_name || u.email}</p>
                 <p className="truncate text-[12.5px] text-muted">{u.email}</p>
               </div>
-              {u.id === viewer.userId ? <span className="text-[13px] text-muted">Admin (you)</span> : <RoleSelect userId={u.id} value={u.role} label={u.label} />}
+              {u.id === viewer.userId ? <span className="text-[13px] text-muted">{viewer.isDemo ? "Demo admin (you)" : "Admin (you)"}</span> : <RoleSelect userId={u.id} value={u.role} label={u.label} />}
             </li>
           ))}
         </ul>
@@ -63,7 +70,11 @@ export default async function SettingsPage() {
                 </p>
                 <p className="text-[12.5px] text-muted">{a.title}</p>
               </div>
-              <LinkLoginSelect agentId={a.id} agentName={a.full_name} value={a.user_id} users={users.map((u) => ({ id: u.id, label: u.label }))} />
+              {viewer.isDemo ? (
+                <span className="text-[13px] text-muted">{a.user_id ? "Login linked" : "No login"}</span>
+              ) : (
+                <LinkLoginSelect agentId={a.id} agentName={a.full_name} value={a.user_id} users={users.map((u) => ({ id: u.id, label: u.label }))} />
+              )}
             </li>
           ))}
         </ul>

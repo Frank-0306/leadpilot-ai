@@ -13,6 +13,15 @@ async function requireAdminAction(): Promise<ActionResult | null> {
   return viewer.isAdmin ? null : { ok: false, message: "Only admins can do that." };
 }
 
+const DEMO_READ_ONLY = "The demo account can't change workspace settings. Everything else is open to explore.";
+
+/** Admin, but not the public demo login (the database enforces the same rule). */
+async function requireConfigAdmin(): Promise<ActionResult | null> {
+  const viewer = await requireViewer();
+  if (!viewer.isAdmin) return { ok: false, message: "Only admins can do that." };
+  return viewer.isDemo ? { ok: false, message: DEMO_READ_ONLY } : null;
+}
+
 export async function resetDemoDataAction(): Promise<ActionResult<{ deleted_leads: number; seeded_leads: number }>> {
   const denied = await requireAdminAction();
   if (denied) return denied as ActionResult<never>;
@@ -27,7 +36,7 @@ export async function resetDemoDataAction(): Promise<ActionResult<{ deleted_lead
 }
 
 export async function linkAgentAction(agentId: string, userId: string | null): Promise<ActionResult> {
-  const denied = await requireAdminAction();
+  const denied = await requireConfigAdmin();
   if (denied) return denied;
   const parsed = z.object({ agentId: z.uuid(), userId: z.uuid().nullable() }).safeParse({ agentId, userId });
   if (!parsed.success) return { ok: false, message: "Choose a valid user." };
@@ -47,6 +56,7 @@ export async function linkAgentAction(agentId: string, userId: string | null): P
 export async function setRoleAction(userId: string, role: "admin" | "agent"): Promise<ActionResult> {
   const viewer = await requireViewer();
   if (!viewer.isAdmin) return { ok: false, message: "Only admins can change roles." };
+  if (viewer.isDemo) return { ok: false, message: DEMO_READ_ONLY };
   const parsed = z.object({ userId: z.uuid(), role: z.enum(["admin", "agent"]) }).safeParse({ userId, role });
   if (!parsed.success) return { ok: false, message: "Invalid role." };
   if (parsed.data.userId === viewer.userId && parsed.data.role !== "admin") {
@@ -111,7 +121,7 @@ const automationSettingsSchema = z.discriminatedUnion("key", [
 ]);
 
 export async function updateAutomationAction(input: { key: string; enabled: boolean; follow_up_hours?: number }): Promise<ActionResult> {
-  const denied = await requireAdminAction();
+  const denied = await requireConfigAdmin();
   if (denied) return denied;
   const parsed = automationSettingsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Follow-up delay must be between 1 and 720 hours." };

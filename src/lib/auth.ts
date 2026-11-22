@@ -11,6 +11,8 @@ export interface Viewer {
   role: Role;
   agent: Agent | null;
   isAdmin: boolean;
+  /** The public demo login: admin-level reads, guarded writes (enforced in the database). */
+  isDemo: boolean;
 }
 
 /**
@@ -26,7 +28,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   if (!user) return null;
 
   const [{ data: profile }, { data: agent }] = await Promise.all([
-    supabase.from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, email, role, is_demo").eq("id", user.id).maybeSingle(),
     supabase.from("agents").select("*").eq("user_id", user.id).eq("is_active", true).maybeSingle(),
   ]);
 
@@ -38,6 +40,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     role,
     agent: (agent as Agent | null) ?? null,
     isAdmin: role === "admin",
+    isDemo: profile?.is_demo === true,
   };
 });
 

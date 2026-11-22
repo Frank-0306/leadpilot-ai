@@ -43,7 +43,7 @@ function RunDot({ status }: { status: AutomationRun["status"] }) {
 }
 
 export default async function AutomationsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
   const sp = await searchParams;
   const status = typeof sp.status === "string" && sp.status in EVENT_STATUS_STYLE ? sp.status : undefined;
 
@@ -150,11 +150,15 @@ export default async function AutomationsPage({ searchParams }: { searchParams: 
                     </span>
                   </p>
                 </div>
-                <AutomationSettingsForm
-                  automationKey={a.key}
-                  enabled={a.enabled}
-                  followUpHours={a.key === "new_lead_follow_up" ? Number(a.settings.follow_up_hours ?? 24) : null}
-                />
+                {viewer.isDemo ? (
+                  <span className="text-[13px] text-muted">{a.enabled ? "Active" : "Paused"} (read-only in the demo)</span>
+                ) : (
+                  <AutomationSettingsForm
+                    automationKey={a.key}
+                    enabled={a.enabled}
+                    followUpHours={a.key === "new_lead_follow_up" ? Number(a.settings.follow_up_hours ?? 24) : null}
+                  />
+                )}
               </div>
               <dl className="grid grid-cols-2 gap-px border-t border-line bg-line sm:grid-cols-4">
                 <div className="bg-surface px-5 py-3">

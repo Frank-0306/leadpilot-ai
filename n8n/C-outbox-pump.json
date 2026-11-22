@@ -1,0 +1,83 @@
+{
+  "name": "LeadPilot – C. Outbox pump (retries)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "7a2d0e3f-0c03-4b8c-8c20-000000000001",
+      "name": "Every minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/events/dispatch",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "7a2d0e3f-0c03-4b8c-8c20-000000000002",
+      "name": "Dispatch due events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "n8n → LeadPilot (cron token)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Optional. Calls LeadPilot every minute so failed deliveries are retried after their backoff and task.overdue events are recorded. LeadPilot already dispatches new leads immediately; this only picks up retries.",
+        "height": 180,
+        "width": 380
+      },
+      "id": "7a2d0e3f-0c03-4b8c-8c20-000000000003",
+      "name": "About",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -220
+      ]
+    }
+  ],
+  "connections": {
+    "Every minute": {
+      "main": [
+        [
+          {
+            "node": "Dispatch due events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+.env
+.env*.local
+*.tsbuildinfo
+.vercel
+.DS_Store
+.deps-*.tgz
+test-results
+playwright-report
+*.tgz
+*.log

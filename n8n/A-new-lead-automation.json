@@ -1,0 +1,241 @@
+{
+  "name": "LeadPilot – A. New Lead Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "leadpilot-new-lead",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6f1c1d2e-0a01-4a7b-9b10-000000000001",
+      "name": "LeadPilot event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "2c9a5c8e-4d1f-4b7e-8a6e-1f6f0c3b9a01",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "LeadPilot → n8n (webhook token)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate the LeadPilot event and keep only the minimum data needed.\n// Nothing from the lead (name, email, message) is used as an instruction.\nconst body = $input.first().json.body ?? {};\nconst errors = [];\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (body.event !== 'lead.created') errors.push('event must be lead.created');\nif (!uuid.test(String(body.event_id ?? ''))) errors.push('event_id must be a UUID');\nif (typeof body.idempotency_key !== 'string' || !body.idempotency_key.startsWith('lead.created:')) {\n  errors.push('idempotency_key is missing');\n}\nif (!body.data || !uuid.test(String(body.data.lead_id ?? ''))) errors.push('data.lead_id must be a UUID');\n\nreturn [{\n  json: {\n    valid: errors.length === 0,\n    errors,\n    event_id: body.event_id ?? null,\n    idempotency_key: body.idempotency_key ?? null,\n    lead_id: body.data?.lead_id ?? null,\n    attempt: body.attempt ?? 1,\n    execution_id: $execution.id,\n  },\n}];"
+      },
+      "id": "6f1c1d2e-0a01-4a7b-9b10-000000000002",
+      "name": "Validate event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "b0f6b6e4-1111-4c1a-9d1e-000000000001",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6f1c1d2e-0a01-4a7b-9b10-000000000003",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/automations/callback",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ action: 'create_follow_up_task', event_id: $json.event_id, idempotency_key: $json.idempotency_key, execution_id: $json.execution_id }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "6f1c1d2e-0a01-4a7b-9b10-000000000004",
+      "name": "Create follow-up task in LeadPilot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "n8n → LeadPilot (callback token)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, outcome: $json.outcome, task_id: $json.task_id, execution_id: $execution.id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "6f1c1d2e-0a01-4a7b-9b10-000000000005",
+      "name": "Respond: done",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: 'LeadPilot callback failed: ' + ($json.error?.message ?? $json.error ?? 'unknown error'), execution_id: $execution.id }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "6f1c1d2e-0a01-4a7b-9b10-000000000006",
+      "name": "Respond: callback failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: 'Invalid event: ' + $json.errors.join(', '), execution_id: $execution.id }) }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "id": "6f1c1d2e-0a01-4a7b-9b10-000000000007",
+      "name": "Respond: invalid event",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## LeadPilot – New Lead Automation\n1. LeadPilot posts `lead.created` here (Header Auth: `Authorization: Bearer …`).\n2. The event is validated; only IDs move on.\n3. n8n asks LeadPilot to create the follow-up task (idempotent per event).\n4. The response tells LeadPilot whether it worked; failures are retried by LeadPilot with backoff.\n\nCredentials are NOT included in this file. Create them in n8n (see docs/n8n-setup.md).",
+        "height": 300,
+        "width": 420
+      },
+      "id": "6f1c1d2e-0a01-4a7b-9b10-000000000008",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -80
+      ]
+    }
+  ],
+  "connections": {
+    "LeadPilot event": {
+      "main": [
+        [
+          {
+            "node": "Validate event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate event": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Create follow-up task in LeadPilot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: invalid event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create follow-up task in LeadPilot": {
+      "main": [
+        [
+          {
+            "node": "Respond: done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: callback failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
